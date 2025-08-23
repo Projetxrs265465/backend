@@ -10,7 +10,7 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// Supabase configuration
+// Supabase configuration (⚠️ removido espaço no final da URL!)
 const supabaseUrl = process.env.SUPABASE_URL || 'https://lzukjzmvcjugmfomajzx.supabase.co';
 const supabaseKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6dWtqem12Y2p1Z21mb21hanp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU3Nzg1MzEsImV4cCI6MjA3MTM1NDUzMX0.TDsLMdiIIR3XjRUtlG_ylJo8LGN3feQoAtipdh1Imgg';
 const supabase = createClient(supabaseUrl, supabaseKey);
@@ -37,7 +37,7 @@ function generateScript(keyword) {
 (function(){
   const urlParams = new URLSearchParams(window.location.search);
   if (urlParams.has('keyword')) {
-    fetch('/api/check?keyword=' + urlParams.get('keyword'))
+    fetch('/api/check?keyword=' + encodeURIComponent(urlParams.get('keyword')))
       .then(response => response.json())
       .then(data => {
         if (data.redirect && data.url) {
@@ -45,7 +45,7 @@ function generateScript(keyword) {
         }
       })
       .catch(error => {
-        console.log('Verification failed, staying on white page');
+        console.log('Verification failed, staying on white page', error);
       });
   }
 })();
@@ -75,6 +75,7 @@ app.post('/api/configs', async (req, res) => {
 
     if (existingError) {
       console.error("❌ Erro ao buscar keyword:", existingError);
+      return res.status(500).json({ error: 'Database error', details: existingError.message });
     }
 
     if (existing) {
@@ -140,8 +141,8 @@ app.get('/api/configs', async (req, res) => {
       return res.status(500).json({ error: 'Database error', details: error.message });
     }
     
-    console.log("✅ Configs retornadas:", data.length);
-    res.json(data);
+    console.log("✅ Configs retornadas:", data?.length || 0);
+    res.json(data || []);
   } catch (error) {
     console.error('❌ Erro no servidor [GET /api/configs]:', error);
     res.status(500).json({ error: 'Internal server error', details: error.message });
@@ -172,9 +173,9 @@ app.delete('/api/configs/:id', async (req, res) => {
   }
 });
 
-// Check keyword and redirect
+// ✅ Rota corrigida: Check keyword and redirect
 app.get('/api/check', async (req, res) => {
-  console.log("📩 [GET /api/configs/check]", req.query);
+  console.log("📩 [GET /api/check]", req.query); // ✅ nome do log corrigido
   try {
     const { keyword } = req.query;
     
@@ -205,7 +206,7 @@ app.get('/api/check', async (req, res) => {
       message: 'Keyword verified'
     });
   } catch (error) {
-    console.error('❌ Erro no servidor [GET /api/configs/check]:', error);
+    console.error('❌ Erro no servidor [GET /api/check]:', error);
     res.json({ redirect: false, message: 'Server error', details: error.message });
   }
 });
