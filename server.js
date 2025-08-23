@@ -10,7 +10,7 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// Supabase configuration (⚠️ removido espaço no final da URL!)
+// Supabase configuration
 const supabaseUrl = process.env.SUPABASE_URL || 'https://lzukjzmvcjugmfomajzx.supabase.co';
 const supabaseKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6dWtqem12Y2p1Z21mb21hanp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU3Nzg1MzEsImV4cCI6MjA3MTM1NDUzMX0.TDsLMdiIIR3XjRUtlG_ylJo8LGN3feQoAtipdh1Imgg';
 const supabase = createClient(supabaseUrl, supabaseKey);
@@ -29,27 +29,6 @@ function generateUTM(campaignType, keyword) {
   }
   
   return baseParams;
-}
-
-// Generate verification script
-function generateScript(keyword) {
-  return `<script>
-(function(){
-  const urlParams = new URLSearchParams(window.location.search);
-  if (urlParams.has('keyword')) {
-    fetch('/api/check?keyword=' + encodeURIComponent(urlParams.get('keyword')))
-      .then(response => response.json())
-      .then(data => {
-        if (data.redirect && data.url) {
-          window.location.replace(data.url);
-        }
-      })
-      .catch(error => {
-        console.log('Verification failed, staying on white page', error);
-      });
-  }
-})();
-</script>`;
 }
 
 // API Routes
@@ -103,11 +82,12 @@ app.post('/api/configs', async (req, res) => {
     
     console.log("✅ Config criada:", data);
 
-    // Generate UTM and script
+    // Generate UTM
     const utm = generateUTM(campaignType, keyword);
-    const script = generateScript(keyword);
-    const apiUrl = `${process.env.BASE_URL || `http://localhost:${PORT}`}/api/check?keyword=${keyword}`;
-    
+
+    // ✅ Nova URL: direto para /api/redirect
+    const redirectUrl = `${process.env.BASE_URL || `https://backend-jknh.onrender.com`}/api/redirect?keyword=${encodeURIComponent(keyword)}`;
+
     res.json({
       config: {
         id: data.id,
@@ -118,8 +98,8 @@ app.post('/api/configs', async (req, res) => {
         createdAt: data.created_at
       },
       utm,
-      script,
-      apiUrl
+      // ❌ Removido script
+      redirectUrl  // ✅ URL que o anunciante vai usar (redireciona direto)
     });
   } catch (error) {
     console.error('❌ Erro no servidor [POST /api/configs]:', error);
@@ -173,41 +153,40 @@ app.delete('/api/configs/:id', async (req, res) => {
   }
 });
 
-// ✅ Rota corrigida: Check keyword and redirect
-app.get('/api/check', async (req, res) => {
-  console.log("📩 [GET /api/check]", req.query); // ✅ nome do log corrigido
+// ✅ NOVA ROTA: Redireciona diretamente (302)
+app.get('/api/redirect', async (req, res) => {
+  console.log("📩 [GET /api/redirect]", req.query);
   try {
     const { keyword } = req.query;
-    
+
     if (!keyword) {
-      return res.json({ redirect: false, message: 'No keyword provided' });
+      return res.status(400).send('<h3>No keyword provided</h3>');
     }
-    
+
     const { data, error } = await supabase
       .from('link_configs')
       .select('*')
       .eq('keyword', keyword)
       .maybeSingle();
-    
+
     if (error) {
       console.error("❌ Erro ao buscar keyword:", error);
-      return res.json({ redirect: false, message: 'Database error', details: error.message });
+      return res.status(500).send('<h3>Server error</h3>');
     }
 
     if (!data) {
       console.warn("⚠️ Keyword não encontrada:", keyword);
-      return res.json({ redirect: false, message: 'Keyword not found' });
+      // ✅ Opcional: mostre uma página branca ou erro
+      return res.status(404).send('<h3>Not found</h3>');
     }
+
+    console.log("✅ Redirecionando para:", data.black_link);
     
-    console.log("✅ Keyword encontrada:", data);
-    res.json({
-      redirect: true,
-      url: data.black_link,
-      message: 'Keyword verified'
-    });
+    // 🔥 REDIRECIONAMENTO DIRETO (302 Found)
+    return res.redirect(302, data.black_link);
   } catch (error) {
-    console.error('❌ Erro no servidor [GET /api/check]:', error);
-    res.json({ redirect: false, message: 'Server error', details: error.message });
+    console.error('❌ Erro no servidor [GET /api/redirect]:', error);
+    return res.status(500).send('<h3>Internal error</h3>');
   }
 });
 
