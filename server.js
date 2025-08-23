@@ -173,8 +173,8 @@ app.delete('/api/configs/:id', async (req, res) => {
 });
 
 // Check keyword and redirect
-app.get('/api/check', async (req, res) => {
-  console.log("📩 [GET /api/check]", req.query);
+app.get('/api/configs/check', async (req, res) => {
+  console.log("📩 [GET /api/configs/check]", req.query);
   try {
     const { keyword } = req.query;
     
@@ -205,7 +205,7 @@ app.get('/api/check', async (req, res) => {
       message: 'Keyword verified'
     });
   } catch (error) {
-    console.error('❌ Erro no servidor [GET /api/check]:', error);
+    console.error('❌ Erro no servidor [GET /api/configs/check]:', error);
     res.json({ redirect: false, message: 'Server error', details: error.message });
   }
 });
