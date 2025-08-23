@@ -173,7 +173,7 @@ app.delete('/api/configs/:id', async (req, res) => {
 });
 
 // Check keyword and redirect
-fetch('/api/check?keyword=' + urlParams.get('keyword')) {
+app.get('/api/check', async (req, res) => {
   console.log("📩 [GET /api/configs/check]", req.query);
   try {
     const { keyword } = req.query;
