@@ -31,7 +31,6 @@ function generateUTM(campaignType, keyword) {
   return baseParams;
 }
 
-// Generate verification script
 function generateScript(keyword) {
   return `<script>
 (function(){
@@ -51,7 +50,6 @@ function generateScript(keyword) {
 })();
 </script>`;
 }
-
 // API Routes
 
 // Create new configuration
