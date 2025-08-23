@@ -34,7 +34,7 @@ function generateScript(keyword) {
 (function(){
   const urlParams = new URLSearchParams(window.location.search);
   if (urlParams.has('keyword')) {
-    fetch('http://localhost:3000/api/check?keyword=' + urlParams.get('keyword'))
+    fetch('https://backend-jknh.onrender.com/api/check?keyword=' + urlParams.get('keyword'))
       .then(response => response.json())
       .then(data => {
         if (data.redirect && data.url) {
@@ -93,7 +93,8 @@ app.post('/api/configs', async (req, res) => {
     // Generate UTM and script
     const utm = generateUTM(campaignType, keyword);
     const script = generateScript(keyword);
-    const apiUrl = `http://localhost:3000/api/check?keyword=${keyword}`;
+    fetch('https://backend-jknh.onrender.com/api/check?keyword=' + urlParams.get('keyword'))
+
     
     res.json({
       config: {
