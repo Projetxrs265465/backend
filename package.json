@@ -1,27 +1,33 @@
 {
-  "name": "redirect-api",
+  "name": "redirectflow-api",
   "version": "1.0.0",
-  "description": "SaaS Redirect System API",
-  "main": "server.js",
+  "description": "API do Sistema RedirectFlow - Redirecionamento Inteligente",
+  "main": "index.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js",
+    "start": "node index.js",
+    "dev": "nodemon index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "dependencies": {
-    "express": "^4.18.2",
-    "cors": "^2.8.5",
-    "dotenv": "^16.3.1",
-    "@supabase/supabase-js": "^2.38.0",
-    "nodemon": "^3.0.1"
   },
   "keywords": [
     "redirect",
-    "saas",
     "api",
-    "utm",
-    "tracking"
+    "nodejs",
+    "express",
+    "supabase"
   ],
-  "author": "",
-  "license": "MIT"
+  "author": "RedirectFlow Team",
+  "license": "MIT",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  }
 }

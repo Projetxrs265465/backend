@@ -1,13 +1,24 @@
 const express = require('express');
 const cors = require('cors');
 const { v4: uuidv4 } = require('uuid');
+const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middlewares
-app.use(cors());
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production' 
+    ? ['https://your-frontend-domain.com'] // Substitua pelo seu domínio do frontend
+    : ['http://localhost:4200', 'http://localhost:3000'],
+  credentials: true
+}));
 app.use(express.json());
+
+// Serve static files in production
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.join(__dirname, '../dist/redirect-saas')));
+}
 
 // In-memory storage (fallback)
 let configs = [];
@@ -16,8 +27,8 @@ let configs = [];
 let supabase = null;
 try {
   const { createClient } = require('@supabase/supabase-js');
-  const supabaseUrl = process.env.VITE_SUPABASE_URL;
-  const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY;
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
   
   if (supabaseUrl && supabaseKey) {
     supabase = createClient(supabaseUrl, supabaseKey);
@@ -280,8 +291,15 @@ app.get('/api/check', async (req, res) => {
   }
 });
 
-// 404 handler
-app.use((req, res) => {
+// Serve Angular app for any non-API routes in production
+if (process.env.NODE_ENV === 'production') {
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../dist/redirect-saas/index.html'));
+  });
+}
+
+// 404 handler for API routes
+app.use('/api/*', (req, res) => {
   res.status(404).json({
     success: false,
     message: 'Endpoint não encontrado',
@@ -302,9 +320,13 @@ app.use((error, req, res, next) => {
 // Start server
 app.listen(PORT, () => {
   console.log(`🚀 RedirectFlow API running on port ${PORT}`);
-  console.log(`📊 Dashboard: http://localhost:4200`);
+  console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔗 API Health: http://localhost:${PORT}/api/health`);
   console.log(`💾 Storage: ${supabase ? 'Supabase' : 'Memory'}`);
+  
+  if (process.env.NODE_ENV === 'production') {
+    console.log(`🌐 Frontend served from: /dist/redirect-saas`);
+  }
 });
 
 module.exports = app;
